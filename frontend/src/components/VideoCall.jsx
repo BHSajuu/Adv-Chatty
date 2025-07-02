@@ -1,126 +1,38 @@
-import {
-  Call,
-  CallControls,
-  CallParticipantsList,
-  SpeakerLayout,
-  useCallStateHooks,
-  useStreamVideoClient,
-} from '@stream-io/video-react-sdk';
-import { useEffect, useState } from 'react';
 import { useNavigate } from 'react-router-dom';
-
-const VideoCallUI = ({ call }) => {
-  const navigate = useNavigate();
-  const { useCallCallingState, useParticipantCount } = useCallStateHooks();
-  const callingState = useCallCallingState();
-  const participantCount = useParticipantCount();
-
-  const handleLeaveCall = async () => {
-    try {
-      await call?.leave();
-    } catch (error) {
-      console.error('Error leaving call:', error);
-    }
-    navigate('/');
-  };
-
-  if (callingState !== 'joined') {
-    return (
-      <div className="flex items-center justify-center h-screen bg-gray-900">
-        <div className="text-center">
-          <div className="animate-spin rounded-full h-32 w-32 border-b-2 border-white mx-auto mb-4"></div>
-          <p className="text-white text-xl">
-            {callingState === 'joining' ? 'Joining call...' : 'Connecting...'}
-          </p>
-          <button 
-            onClick={handleLeaveCall}
-            className="mt-4 px-4 py-2 bg-red-600 text-white rounded hover:bg-red-700"
-          >
-            Cancel
-          </button>
-        </div>
-      </div>
-    );
-  }
-
-  return (
-    <div className="h-screen bg-gray-900 flex flex-col">
-      <div className="flex-1 relative">
-        <SpeakerLayout participantsBarPosition="bottom" />
-        <div className="absolute top-4 right-4 bg-black bg-opacity-50 text-white px-3 py-1 rounded">
-          {participantCount} participant{participantCount !== 1 ? 's' : ''}
-        </div>
-      </div>
-      
-      <div className="p-4 bg-gray-800">
-        <CallControls onLeave={handleLeaveCall} />
-      </div>
-      
-      <div className="h-24 bg-gray-700">
-        <CallParticipantsList onClose={() => {}} />
-      </div>
-    </div>
-  );
-};
 
 const VideoCall = ({ callId }) => {
   const navigate = useNavigate();
-  const client = useStreamVideoClient();
-  const [call, setCall] = useState(null);
-  const [isLoading, setIsLoading] = useState(true);
 
-  useEffect(() => {
-    if (!client || !callId) return;
-
-    const initializeCall = async () => {
-      try {
-        setIsLoading(true);
+  return (
+    <div className="flex items-center justify-center h-screen bg-gray-900">
+      <div className="text-center">
+        <div className="mb-8">
+          <h1 className="text-4xl font-bold text-white mb-4">Video Call</h1>
+          <p className="text-gray-300 text-lg mb-2">Call ID: {callId}</p>
+          <p className="text-gray-400">Video calling feature is currently being set up.</p>
+          <p className="text-gray-400">This requires Stream API configuration.</p>
+        </div>
         
-        // Create or get the call
-        const videoCall = client.call('default', callId);
-        
-        // Join the call
-        await videoCall.join({ create: true });
-        
-        setCall(videoCall);
-      } catch (error) {
-        console.error('Failed to initialize call:', error);
-        navigate('/');
-      } finally {
-        setIsLoading(false);
-      }
-    };
-
-    initializeCall();
-
-    return () => {
-      if (call) {
-        call.leave().catch(console.error);
-      }
-    };
-  }, [client, callId, navigate]);
-
-  if (isLoading || !call) {
-    return (
-      <div className="flex items-center justify-center h-screen bg-gray-900">
-        <div className="text-center">
-          <div className="animate-spin rounded-full h-32 w-32 border-b-2 border-white mx-auto mb-4"></div>
-          <p className="text-white text-xl">Loading video call...</p>
+        <div className="space-y-4">
+          <div className="bg-gray-800 p-6 rounded-lg">
+            <h3 className="text-white text-lg mb-2">To enable video calling:</h3>
+            <ol className="text-gray-300 text-left space-y-2">
+              <li>1. Sign up for a Stream account</li>
+              <li>2. Get your API key and secret</li>
+              <li>3. Add them to your environment variables</li>
+              <li>4. Restart the application</li>
+            </ol>
+          </div>
+          
           <button 
             onClick={() => navigate('/')}
-            className="mt-4 px-4 py-2 bg-gray-600 text-white rounded hover:bg-gray-700"
+            className="px-6 py-3 bg-blue-600 text-white rounded-lg hover:bg-blue-700 transition-colors"
           >
-            Go Back
+            Back to Chat
           </button>
         </div>
       </div>
-    );
-  }
-
-  return (
-    <Call call={call}>
-      <VideoCallUI call={call} />
-    </Call>
+    </div>
   );
 };
 

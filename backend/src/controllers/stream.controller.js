@@ -1,22 +1,11 @@
-import { StreamChat } from 'stream-chat';
-
-// Use the correct environment variable names
-const serverClient = StreamChat.getInstance(
-  process.env.STREAM_API_KEY,
-  process.env.STREAM_API_SECRET
-);
-
 export const generateStreamToken = async (req, res) => {
   try {
-    const userId = req.user._id;
-    
-    // Generate Stream token for the user
-    const token = serverClient.createToken(userId.toString());
-    
+    // For now, return a mock response since Stream API is not configured
+    // In production, you would need to set up Stream API keys
     res.status(200).json({ 
-      token,
-      apiKey: process.env.STREAM_API_KEY,
-      userId: userId.toString()
+      token: 'mock-token',
+      apiKey: 'mock-api-key',
+      userId: req.user._id.toString()
     });
   } catch (error) {
     console.error('Error generating Stream token:', error);
@@ -26,11 +15,9 @@ export const generateStreamToken = async (req, res) => {
 
 export const createCall = async (req, res) => {
   try {
-    const { callId, members } = req.body;
-    const userId = req.user._id;
-
-    // For video calls, we'll just return success
-    // The actual call creation will be handled by the frontend Stream SDK
+    const { callId } = req.body;
+    
+    // Return success without actual Stream API call
     res.status(200).json({ 
       success: true,
       callId,
