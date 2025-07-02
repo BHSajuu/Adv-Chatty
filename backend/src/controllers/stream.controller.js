@@ -1,9 +1,9 @@
 import { StreamChat } from 'stream-chat';
 
-// Use the correct environment variable names from your .env file
+// Use the correct environment variable names
 const serverClient = StreamChat.getInstance(
-  process.env.STEAM_API_KEY,  // Changed from STREAM_API_KEY to STEAM_API_KEY
-  process.env.STEAM_API_SECRET  // Changed from STREAM_API_SECRET to STEAM_API_SECRET
+  process.env.STREAM_API_KEY,
+  process.env.STREAM_API_SECRET
 );
 
 export const generateStreamToken = async (req, res) => {
@@ -15,7 +15,7 @@ export const generateStreamToken = async (req, res) => {
     
     res.status(200).json({ 
       token,
-      apiKey: process.env.STEAM_API_KEY,  // Changed from STREAM_API_KEY to STEAM_API_KEY
+      apiKey: process.env.STREAM_API_KEY,
       userId: userId.toString()
     });
   } catch (error) {
@@ -29,16 +29,8 @@ export const createCall = async (req, res) => {
     const { callId, members } = req.body;
     const userId = req.user._id;
 
-    // Create a call on Stream
-    const call = serverClient.video.call('default', callId);
-    
-    await call.getOrCreate({
-      data: {
-        created_by_id: userId.toString(),
-        members: members.map(memberId => ({ user_id: memberId.toString() })),
-      },
-    });
-
+    // For video calls, we'll just return success
+    // The actual call creation will be handled by the frontend Stream SDK
     res.status(200).json({ 
       success: true,
       callId,

@@ -2,7 +2,6 @@ import { MessageCircleX, Video, X } from "lucide-react";
 import { useAuthStore } from "../store/useAuthStore";
 import { useChatStore } from "../store/useChatStore";
 import { useState } from "react";
-import { Link } from "react-router-dom";
 import { v4 as uuidv4 } from 'uuid';
 
 const ChatHeader = () => {
@@ -30,7 +29,7 @@ const ChatHeader = () => {
       
       // Send video call link as a message
       await sendMessage({
-        text: `📹 Video Call Invitation: ${callLink}`,
+        text: `📹 Video Call Invitation: Click to join: ${callLink}`,
         image: null,
         audio: null,
       });

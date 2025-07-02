@@ -10,6 +10,9 @@ const VideoCallProvider = ({ children }) => {
 
   useEffect(() => {
     if (!authUser) {
+      if (videoClient) {
+        videoClient.disconnectUser().catch(console.error);
+      }
       setVideoClient(null);
       return;
     }
@@ -32,12 +35,14 @@ const VideoCallProvider = ({ children }) => {
 
         if (!token || !key || !streamUserId) return;
 
-        // Disconnect existing client if any
+        // Check if client already exists and disconnect it
         if (videoClient) {
           await videoClient.disconnectUser();
+          setVideoClient(null);
         }
 
-        const client = new StreamVideoClient({
+        // Use getOrCreateInstance to avoid duplicate client warnings
+        const client = StreamVideoClient.getOrCreateInstance({
           apiKey: key,
           user: {
             id: streamUserId,
@@ -58,7 +63,6 @@ const VideoCallProvider = ({ children }) => {
     return () => {
       if (videoClient) {
         videoClient.disconnectUser().catch(console.error);
-        setVideoClient(null);
       }
     };
   }, [authUser, streamToken, apiKey, userId, getStreamToken]);

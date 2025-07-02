@@ -4,19 +4,23 @@ import {
   CallParticipantsList,
   SpeakerLayout,
   useCallStateHooks,
+  useStreamVideoClient,
 } from '@stream-io/video-react-sdk';
-import { useEffect } from 'react';
+import { useEffect, useState } from 'react';
 import { useNavigate } from 'react-router-dom';
-import { useStreamStore } from '../store/useStreamStore';
-import { useAuthStore } from '../store/useAuthStore';
 
-const VideoCallUI = () => {
+const VideoCallUI = ({ call }) => {
   const navigate = useNavigate();
   const { useCallCallingState, useParticipantCount } = useCallStateHooks();
   const callingState = useCallCallingState();
   const participantCount = useParticipantCount();
 
-  const handleLeaveCall = () => {
+  const handleLeaveCall = async () => {
+    try {
+      await call?.leave();
+    } catch (error) {
+      console.error('Error leaving call:', error);
+    }
     navigate('/');
   };
 
@@ -61,22 +65,42 @@ const VideoCallUI = () => {
 
 const VideoCall = ({ callId }) => {
   const navigate = useNavigate();
-  const { authUser } = useAuthStore();
-  const { streamToken, apiKey, userId, getStreamToken } = useStreamStore();
+  const client = useStreamVideoClient();
+  const [call, setCall] = useState(null);
+  const [isLoading, setIsLoading] = useState(true);
 
   useEffect(() => {
-    if (!authUser) {
-      navigate('/login');
-      return;
-    }
+    if (!client || !callId) return;
 
-    // Ensure we have stream credentials
-    if (!streamToken || !apiKey || !userId) {
-      getStreamToken();
-    }
-  }, [authUser, streamToken, apiKey, userId, getStreamToken, navigate]);
+    const initializeCall = async () => {
+      try {
+        setIsLoading(true);
+        
+        // Create or get the call
+        const videoCall = client.call('default', callId);
+        
+        // Join the call
+        await videoCall.join({ create: true });
+        
+        setCall(videoCall);
+      } catch (error) {
+        console.error('Failed to initialize call:', error);
+        navigate('/');
+      } finally {
+        setIsLoading(false);
+      }
+    };
 
-  if (!streamToken || !apiKey || !userId) {
+    initializeCall();
+
+    return () => {
+      if (call) {
+        call.leave().catch(console.error);
+      }
+    };
+  }, [client, callId, navigate]);
+
+  if (isLoading || !call) {
     return (
       <div className="flex items-center justify-center h-screen bg-gray-900">
         <div className="text-center">
@@ -94,8 +118,8 @@ const VideoCall = ({ callId }) => {
   }
 
   return (
-    <Call id={callId}>
-      <VideoCallUI />
+    <Call call={call}>
+      <VideoCallUI call={call} />
     </Call>
   );
 };
