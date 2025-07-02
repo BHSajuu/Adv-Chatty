@@ -9,7 +9,10 @@ const VideoCallProvider = ({ children }) => {
   const { streamToken, apiKey, userId, getStreamToken } = useStreamStore();
 
   useEffect(() => {
-    if (!authUser) return;
+    if (!authUser) {
+      setVideoClient(null);
+      return;
+    }
 
     const initializeVideoClient = async () => {
       try {
@@ -20,12 +23,19 @@ const VideoCallProvider = ({ children }) => {
 
         if (!token || !key || !streamUserId) {
           const streamData = await getStreamToken();
+          if (!streamData) return;
+          
           token = streamData.token;
           key = streamData.apiKey;
           streamUserId = streamData.userId;
         }
 
         if (!token || !key || !streamUserId) return;
+
+        // Disconnect existing client if any
+        if (videoClient) {
+          await videoClient.disconnectUser();
+        }
 
         const client = new StreamVideoClient({
           apiKey: key,
@@ -47,14 +57,13 @@ const VideoCallProvider = ({ children }) => {
 
     return () => {
       if (videoClient) {
-        videoClient.disconnectUser();
+        videoClient.disconnectUser().catch(console.error);
         setVideoClient(null);
       }
     };
   }, [authUser, streamToken, apiKey, userId, getStreamToken]);
 
-  if (!videoClient) return children;
-
+  // Always render children, video client is optional
   return (
     <StreamVideo client={videoClient}>
       {children}

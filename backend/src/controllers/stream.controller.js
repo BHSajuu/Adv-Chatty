@@ -1,21 +1,20 @@
 import { StreamChat } from 'stream-chat';
-import jwt from 'jsonwebtoken';
 
 const serverClient = StreamChat.getInstance(
-  process.env.STEAM_API_KEY,
-  process.env.STEAM_API_SECRET
+  process.env.STREAM_API_KEY,
+  process.env.STREAM_API_SECRET
 );
 
 export const generateStreamToken = async (req, res) => {
   try {
-    const { userId } = req.user;
+    const userId = req.user._id;
     
     // Generate Stream token for the user
     const token = serverClient.createToken(userId.toString());
     
     res.status(200).json({ 
       token,
-      apiKey: process.env.STEAM_API_KEY,
+      apiKey: process.env.STREAM_API_KEY,
       userId: userId.toString()
     });
   } catch (error) {
@@ -27,7 +26,7 @@ export const generateStreamToken = async (req, res) => {
 export const createCall = async (req, res) => {
   try {
     const { callId, members } = req.body;
-    const { userId } = req.user;
+    const userId = req.user._id;
 
     // Create a call on Stream
     const call = serverClient.video.call('default', callId);

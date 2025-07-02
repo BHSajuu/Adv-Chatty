@@ -1,6 +1,5 @@
 import { useEffect, useState } from 'react';
 import { useNavigate, useParams } from 'react-router-dom';
-import { v4 as uuidv4 } from 'uuid';
 import VideoCall from '../components/VideoCall';
 import { useAuthStore } from '../store/useAuthStore';
 import { useStreamStore } from '../store/useStreamStore';
@@ -8,12 +7,11 @@ import { useChatStore } from '../store/useChatStore';
 import toast from 'react-hot-toast';
 
 function CallPage() {
-  const { id: receiverId } = useParams();
+  const { id: callId } = useParams();
   const navigate = useNavigate();
   const { authUser } = useAuthStore();
   const { createCall, getStreamToken } = useStreamStore();
   const { selectedUser } = useChatStore();
-  const [callId, setCallId] = useState(null);
   const [isCreatingCall, setIsCreatingCall] = useState(false);
 
   useEffect(() => {
@@ -26,30 +24,30 @@ function CallPage() {
       try {
         setIsCreatingCall(true);
         
-        // Generate unique call ID
-        const newCallId = uuidv4();
-        setCallId(newCallId);
-
         // Get stream token first
         await getStreamToken();
 
-        // Create the call with both participants
-        await createCall(newCallId, [authUser._id, receiverId]);
+        // Create the call - if selectedUser exists, add them as member
+        const members = selectedUser 
+          ? [authUser._id, selectedUser._id] 
+          : [authUser._id];
         
-        toast.success('Call created successfully!');
+        await createCall(callId, members);
+        
+        toast.success('Joined call successfully!');
       } catch (error) {
         console.error('Failed to initialize call:', error);
-        toast.error('Failed to create call');
-        navigate('/');
+        toast.error('Failed to join call');
+        // Don't navigate away on error, let user try again
       } finally {
         setIsCreatingCall(false);
       }
     };
 
     initializeCall();
-  }, [authUser, receiverId, createCall, getStreamToken, navigate]);
+  }, [authUser, callId, createCall, getStreamToken, selectedUser]);
 
-  if (isCreatingCall || !callId) {
+  if (isCreatingCall) {
     return (
       <div className="flex items-center justify-center h-screen bg-gray-900">
         <div className="text-center">

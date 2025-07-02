@@ -3,14 +3,13 @@ import { useAuthStore } from "../store/useAuthStore";
 import { useChatStore } from "../store/useChatStore";
 import { useState } from "react";
 import { Link } from "react-router-dom";
-
+import { v4 as uuidv4 } from 'uuid';
 
 const ChatHeader = () => {
-  const { selectedUser, setSelectedUser, clearChat } = useChatStore();
+  const { selectedUser, setSelectedUser, clearChat, sendMessage } = useChatStore();
   const { authUser } = useAuthStore();
   const { onlineUsers } = useAuthStore();
   const [open, setOpen] = useState(false);
-
 
   const handleClearChat = async () => {
     try {
@@ -22,6 +21,26 @@ const ChatHeader = () => {
       setOpen(false);
     }
   }
+
+  const handleVideoCall = async () => {
+    try {
+      // Generate unique call ID
+      const callId = uuidv4();
+      const callLink = `${window.location.origin}/call/${callId}`;
+      
+      // Send video call link as a message
+      await sendMessage({
+        text: `📹 Video Call Invitation: ${callLink}`,
+        image: null,
+        audio: null,
+      });
+
+      // Navigate to the call page
+      window.open(`/call/${callId}`, '_blank');
+    } catch (error) {
+      console.error("Error creating video call:", error);
+    }
+  };
 
   return (
     <div className=" p-2.5  border-b border-base-300 fixed w-full top-2 z-40 backdrop-blur-3xl md:w-auto md:relative md:top-0 md:z-0">
@@ -45,11 +64,14 @@ const ChatHeader = () => {
         </div>
 
         <div className="flex flex-row gap-8 lg:gap-18 items-center">
-          <Link to={``}>
-            <button className="tooltip tooltip-left hover:cursor-pointer" data-tip="Video call" type="button">
-              <Video />
-            </button>
-          </Link>
+          <button 
+            onClick={handleVideoCall}
+            className="tooltip tooltip-left hover:cursor-pointer" 
+            data-tip="Start video call" 
+            type="button"
+          >
+            <Video />
+          </button>
           <button className="tooltip tooltip-left hover:cursor-pointer" data-tip="Clear chat" type="button">
             <MessageCircleX onClick={() => setOpen(true)} />
           </button>

@@ -6,7 +6,7 @@ import {
   useCallStateHooks,
 } from '@stream-io/video-react-sdk';
 import { useEffect } from 'react';
-import { useNavigate, useParams } from 'react-router-dom';
+import { useNavigate } from 'react-router-dom';
 import { useStreamStore } from '../store/useStreamStore';
 import { useAuthStore } from '../store/useAuthStore';
 
@@ -28,6 +28,12 @@ const VideoCallUI = () => {
           <p className="text-white text-xl">
             {callingState === 'joining' ? 'Joining call...' : 'Connecting...'}
           </p>
+          <button 
+            onClick={handleLeaveCall}
+            className="mt-4 px-4 py-2 bg-red-600 text-white rounded hover:bg-red-700"
+          >
+            Cancel
+          </button>
         </div>
       </div>
     );
@@ -53,8 +59,7 @@ const VideoCallUI = () => {
   );
 };
 
-const VideoCall = () => {
-  const { id: callId } = useParams();
+const VideoCall = ({ callId }) => {
   const navigate = useNavigate();
   const { authUser } = useAuthStore();
   const { streamToken, apiKey, userId, getStreamToken } = useStreamStore();
@@ -77,6 +82,12 @@ const VideoCall = () => {
         <div className="text-center">
           <div className="animate-spin rounded-full h-32 w-32 border-b-2 border-white mx-auto mb-4"></div>
           <p className="text-white text-xl">Loading video call...</p>
+          <button 
+            onClick={() => navigate('/')}
+            className="mt-4 px-4 py-2 bg-gray-600 text-white rounded hover:bg-gray-700"
+          >
+            Go Back
+          </button>
         </div>
       </div>
     );

@@ -21,6 +21,7 @@ export const useStreamStore = create((set, get) => ({
     } catch (error) {
       toast.error("Failed to get stream token");
       console.error("Stream token error:", error);
+      return null;
     } finally {
       set({ isLoadingToken: false });
     }
