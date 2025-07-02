@@ -24,7 +24,7 @@
     "mongoose": "^8.12.2",
     "nodemailer": "^6.10.1",
     "socket.io": "^4.8.1",
-    "stream-chat": "^8.40.0"
+    "stream-chat": "^8.60.0"
   },
   "devDependencies": {
     "nodemon": "^3.1.9"

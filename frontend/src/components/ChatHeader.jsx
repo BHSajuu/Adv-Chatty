@@ -45,7 +45,7 @@ const ChatHeader = () => {
         </div>
 
         <div className="flex flex-row gap-8 lg:gap-18 items-center">
-          <Link to={`/call/${selectedUser._id}`}>
+          <Link to={``}>
             <button className="tooltip tooltip-left hover:cursor-pointer" data-tip="Video call" type="button">
               <Video />
             </button>
