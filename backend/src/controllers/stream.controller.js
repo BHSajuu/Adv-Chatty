@@ -1,8 +1,9 @@
 import { StreamChat } from 'stream-chat';
 
+// Use the correct environment variable names from your .env file
 const serverClient = StreamChat.getInstance(
-  process.env.STREAM_API_KEY,
-  process.env.STREAM_API_SECRET
+  process.env.STEAM_API_KEY,  // Changed from STREAM_API_KEY to STEAM_API_KEY
+  process.env.STEAM_API_SECRET  // Changed from STREAM_API_SECRET to STEAM_API_SECRET
 );
 
 export const generateStreamToken = async (req, res) => {
@@ -14,7 +15,7 @@ export const generateStreamToken = async (req, res) => {
     
     res.status(200).json({ 
       token,
-      apiKey: process.env.STREAM_API_KEY,
+      apiKey: process.env.STEAM_API_KEY,  // Changed from STREAM_API_KEY to STEAM_API_KEY
       userId: userId.toString()
     });
   } catch (error) {
