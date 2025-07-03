@@ -9,7 +9,7 @@ import toast from "react-hot-toast";
 const ChatHeader = () => {
   const { selectedUser, setSelectedUser, clearChat, sendMessage } = useChatStore();
   const { authUser } = useAuthStore();
-  const { onlineUsers } = useAuthStore();
+  const { onlineUsers, socket } = useAuthStore();
   const { createCall, streamToken, getStreamToken, isStreamConfigured } = useStreamStore();
   const [open, setOpen] = useState(false);
   const [isCreatingCall, setIsCreatingCall] = useState(false);
@@ -50,6 +50,16 @@ const ChatHeader = () => {
       
       // Create call on backend
       await createCall(callId, [selectedUser._id]);
+      
+      // Send call invitation via socket
+      if (socket) {
+        socket.emit('initiate-call', {
+          receiverId: selectedUser._id,
+          callId,
+          callerName: authUser.fullName,
+          callerImage: authUser.profilePic
+        });
+      }
       
       // Send video call link as a message
       await sendMessage({

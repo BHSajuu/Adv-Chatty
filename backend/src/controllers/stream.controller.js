@@ -8,6 +8,12 @@ const initializeStreamClient = () => {
     return null;
   }
   
+  // Check for demo credentials
+  if (process.env.STREAM_API_KEY === 'demo_api_key_replace_with_real' || 
+      process.env.STREAM_API_SECRET === 'demo_secret_replace_with_real') {
+    return null;
+  }
+  
   if (!streamClient) {
     try {
       streamClient = StreamChat.getInstance(
@@ -25,10 +31,19 @@ const initializeStreamClient = () => {
 export const generateStreamToken = async (req, res) => {
   try {
     // Check if Stream API credentials are configured
-    if (!process.env.STREAM_API_KEY || !process.env.STREAM_API_SECRET) {
+    if (!process.env.STREAM_API_KEY || !process.env.STREAM_API_SECRET ||
+        process.env.STREAM_API_KEY === 'demo_api_key_replace_with_real' ||
+        process.env.STREAM_API_SECRET === 'demo_secret_replace_with_real') {
       return res.status(503).json({ 
-        message: 'Video calling service is not configured. Please contact administrator.',
-        error: 'STREAM_NOT_CONFIGURED'
+        message: 'Video calling service is not configured. Please add your Stream API credentials to the .env file.',
+        error: 'STREAM_NOT_CONFIGURED',
+        instructions: {
+          step1: 'Go to https://getstream.io and create a free account',
+          step2: 'Create a new app in the Stream dashboard',
+          step3: 'Copy your API Key and Secret',
+          step4: 'Add STREAM_API_KEY and STREAM_API_SECRET to your .env file',
+          step5: 'Restart the backend server'
+        }
       });
     }
 
@@ -84,7 +99,9 @@ export const generateStreamToken = async (req, res) => {
 export const createCall = async (req, res) => {
   try {
     // Check if Stream API credentials are configured
-    if (!process.env.STREAM_API_KEY || !process.env.STREAM_API_SECRET) {
+    if (!process.env.STREAM_API_KEY || !process.env.STREAM_API_SECRET ||
+        process.env.STREAM_API_KEY === 'demo_api_key_replace_with_real' ||
+        process.env.STREAM_API_SECRET === 'demo_secret_replace_with_real') {
       return res.status(503).json({ 
         message: 'Video calling service is not configured.',
         error: 'STREAM_NOT_CONFIGURED'
@@ -111,7 +128,7 @@ export const createCall = async (req, res) => {
     }
 
     try {
-      // Create call data (simplified for now since we're using client-side call creation)
+      // Create call data
       const callData = {
         id: callId,
         type: 'default',
@@ -162,7 +179,9 @@ export const getCallDetails = async (req, res) => {
     }
 
     // Check if Stream API credentials are configured
-    if (!process.env.STREAM_API_KEY || !process.env.STREAM_API_SECRET) {
+    if (!process.env.STREAM_API_KEY || !process.env.STREAM_API_SECRET ||
+        process.env.STREAM_API_KEY === 'demo_api_key_replace_with_real' ||
+        process.env.STREAM_API_SECRET === 'demo_secret_replace_with_real') {
       return res.status(503).json({ 
         message: 'Video calling service is not configured.',
         error: 'STREAM_NOT_CONFIGURED'
