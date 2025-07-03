@@ -4,6 +4,7 @@ import { Toaster } from "react-hot-toast";
 import { Navigate, Route, Routes } from "react-router-dom";
 import Navbar from "./components/Navbar";
 import VideoCallProvider from "./components/VideoCallProvider";
+import IncomingCallHandler from "./components/IncomingCallHandler";
 import ForgotPasswordPage from "./pages/ForgotPasswordPage";
 import HomePage from "./pages/HomePage";
 import LoginPage from "./pages/LoginPage";
@@ -34,6 +35,7 @@ function App() {
     <VideoCallProvider>
       <div data-theme={theme}>
         <Navbar />
+        <IncomingCallHandler />
 
         <Routes>
           <Route

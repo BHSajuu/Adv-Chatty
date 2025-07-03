@@ -1,14 +1,18 @@
 import { MessageCircleX, Video, X } from "lucide-react";
 import { useAuthStore } from "../store/useAuthStore";
 import { useChatStore } from "../store/useChatStore";
+import { useStreamStore } from "../store/useStreamStore";
 import { useState } from "react";
 import { v4 as uuidv4 } from 'uuid';
+import toast from "react-hot-toast";
 
 const ChatHeader = () => {
   const { selectedUser, setSelectedUser, clearChat, sendMessage } = useChatStore();
   const { authUser } = useAuthStore();
   const { onlineUsers } = useAuthStore();
+  const { createCall, streamToken, getStreamToken } = useStreamStore();
   const [open, setOpen] = useState(false);
+  const [isCreatingCall, setIsCreatingCall] = useState(false);
 
   const handleClearChat = async () => {
     try {
@@ -23,21 +27,36 @@ const ChatHeader = () => {
 
   const handleVideoCall = async () => {
     try {
+      setIsCreatingCall(true);
+      
+      // Ensure we have stream token
+      if (!streamToken) {
+        await getStreamToken();
+      }
+
       // Generate unique call ID
       const callId = uuidv4();
       const callLink = `${window.location.origin}/call/${callId}`;
       
+      // Create call on backend
+      await createCall(callId, [selectedUser._id]);
+      
       // Send video call link as a message
       await sendMessage({
-        text: `📹 Video Call Invitation: Click to join: ${callLink}`,
+        text: `📹 Video Call Invitation: ${selectedUser.fullName}, click to join: ${callLink}`,
         image: null,
         audio: null,
       });
 
-      // Navigate to the call page
+      // Open call in new tab
       window.open(`/call/${callId}`, '_blank');
+      
+      toast.success("Video call created! Link sent to chat.");
     } catch (error) {
       console.error("Error creating video call:", error);
+      toast.error("Failed to create video call. Please check your Stream configuration.");
+    } finally {
+      setIsCreatingCall(false);
     }
   };
 
@@ -65,11 +84,12 @@ const ChatHeader = () => {
         <div className="flex flex-row gap-8 lg:gap-18 items-center">
           <button 
             onClick={handleVideoCall}
-            className="tooltip tooltip-left hover:cursor-pointer" 
-            data-tip="Start video call" 
+            disabled={isCreatingCall}
+            className={`tooltip tooltip-left hover:cursor-pointer ${isCreatingCall ? 'opacity-50' : ''}`}
+            data-tip={isCreatingCall ? "Creating call..." : "Start video call"}
             type="button"
           >
-            <Video />
+            <Video className={isCreatingCall ? 'animate-pulse' : ''} />
           </button>
           <button className="tooltip tooltip-left hover:cursor-pointer" data-tip="Clear chat" type="button">
             <MessageCircleX onClick={() => setOpen(true)} />

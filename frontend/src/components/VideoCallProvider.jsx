@@ -1,15 +1,42 @@
-import { StreamVideo } from '@stream-io/video-react-sdk';
+import { StreamVideo, StreamVideoClient } from '@stream-io/video-react-sdk';
+import { useEffect, useState } from 'react';
 import { useAuthStore } from '../store/useAuthStore';
+import { useStreamStore } from '../store/useStreamStore';
 
 const VideoCallProvider = ({ children }) => {
   const { authUser } = useAuthStore();
+  const { streamToken, apiKey, userId, getStreamToken } = useStreamStore();
+  const [videoClient, setVideoClient] = useState(null);
 
-  // For now, render children without Stream Video client
-  // This prevents the 500 errors while keeping the app functional
-  // Video calling can be implemented later with proper Stream API setup
-  
+  useEffect(() => {
+    if (authUser && !streamToken) {
+      getStreamToken();
+    }
+  }, [authUser, streamToken, getStreamToken]);
+
+  useEffect(() => {
+    if (streamToken && apiKey && userId && authUser) {
+      const client = new StreamVideoClient({
+        apiKey,
+        user: {
+          id: userId,
+          name: authUser.fullName,
+          image: authUser.profilePic || '/avatar.png',
+        },
+        token: streamToken,
+      });
+
+      setVideoClient(client);
+
+      return () => {
+        client.disconnectUser();
+        setVideoClient(null);
+      };
+    }
+  }, [streamToken, apiKey, userId, authUser]);
+
   return (
-    <StreamVideo client={null}>
+    <StreamVideo client={videoClient}>
       {children}
     </StreamVideo>
   );

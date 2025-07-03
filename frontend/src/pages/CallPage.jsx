@@ -16,7 +16,19 @@ function CallPage() {
   }, [authUser, navigate]);
 
   if (!authUser) {
-    return null;
+    return (
+      <div className="flex items-center justify-center h-screen bg-gray-900">
+        <div className="text-center">
+          <p className="text-white text-lg">Please log in to join the call</p>
+          <button 
+            onClick={() => navigate('/login')}
+            className="mt-4 px-6 py-3 bg-blue-600 text-white rounded-lg hover:bg-blue-700 transition-colors"
+          >
+            Go to Login
+          </button>
+        </div>
+      </div>
+    );
   }
 
   return <VideoCall callId={callId} />;

@@ -6,6 +6,8 @@ export const useStreamStore = create((set, get) => ({
   streamToken: null,
   apiKey: null,
   userId: null,
+  userName: null,
+  userEmail: null,
   isLoadingToken: false,
 
   getStreamToken: async () => {
@@ -16,18 +18,26 @@ export const useStreamStore = create((set, get) => ({
         streamToken: res.data.token,
         apiKey: res.data.apiKey,
         userId: res.data.userId,
+        userName: res.data.userName,
+        userEmail: res.data.userEmail,
       });
       return res.data;
     } catch (error) {
-      toast.error("Failed to get stream token");
       console.error("Stream token error:", error);
+      
+      // Check if it's a configuration error
+      if (error.response?.status === 500) {
+        toast.error("Video calling not configured. Please check Stream API settings.");
+      } else {
+        toast.error("Failed to get stream token");
+      }
       return null;
     } finally {
       set({ isLoadingToken: false });
     }
   },
 
-  createCall: async (callId, members) => {
+  createCall: async (callId, members = []) => {
     try {
       const res = await axiosInstance.post("/stream/create-call", {
         callId,
@@ -41,11 +51,23 @@ export const useStreamStore = create((set, get) => ({
     }
   },
 
+  getCallDetails: async (callId) => {
+    try {
+      const res = await axiosInstance.get(`/stream/call/${callId}`);
+      return res.data;
+    } catch (error) {
+      console.error("Get call details error:", error);
+      throw error;
+    }
+  },
+
   clearStreamData: () => {
     set({
       streamToken: null,
       apiKey: null,
       userId: null,
+      userName: null,
+      userEmail: null,
     });
   },
 }));
