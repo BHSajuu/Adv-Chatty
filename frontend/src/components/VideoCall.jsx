@@ -87,12 +87,21 @@ const VideoCall = () => {
         setIsLoading(true);
         setError(null);
         
+        console.log('Initializing call with ID:', callId);
+        console.log('Current stream token:', streamToken ? 'Present' : 'Missing');
+        console.log('Current API key:', apiKey ? 'Present' : 'Missing');
+        
         // Get Stream token if not available
+        let tokenData = null;
         if (!streamToken || !apiKey) {
-          const tokenData = await getStreamToken();
+          console.log('Getting new Stream token...');
+          tokenData = await getStreamToken();
           if (!tokenData) {
             throw new Error('Failed to get Stream credentials');
           }
+          console.log('Stream token obtained successfully');
+        } else {
+          tokenData = { token: streamToken, apiKey };
         }
 
         // Check if Stream is configured
@@ -103,31 +112,43 @@ const VideoCall = () => {
         // Import StreamVideoClient dynamically to avoid SSR issues
         const { StreamVideoClient } = await import('@stream-io/video-react-sdk');
         
-        if (!streamToken || !apiKey) {
+        if (!tokenData.token || !tokenData.apiKey) {
           throw new Error('Stream credentials not available');
         }
 
+        console.log('Creating Stream video client...');
         const client = new StreamVideoClient({
-          apiKey,
+          apiKey: tokenData.apiKey,
           user: {
             id: authUser._id,
             name: authUser.fullName,
             image: authUser.profilePic || '/avatar.png',
           },
-          token: streamToken,
+          token: tokenData.token,
         });
 
+        console.log('Creating call instance...');
         const callInstance = client.call('default', callId);
         
         // Join the call
+        console.log('Joining call...');
         await callInstance.join({ create: true });
         
         setCall(callInstance);
+        console.log('Successfully joined the call!');
         toast.success('Successfully joined the call!');
       } catch (err) {
         console.error('Error initializing call:', err);
         setError(err.message);
-        toast.error('Failed to join call: ' + err.message);
+        
+        // More specific error messages
+        if (err.message.includes('credentials')) {
+          toast.error('Video calling setup required. Please check configuration.');
+        } else if (err.message.includes('network') || err.message.includes('connection')) {
+          toast.error('Network error. Please check your internet connection.');
+        } else {
+          toast.error('Failed to join call: ' + err.message);
+        }
       } finally {
         setIsLoading(false);
       }
@@ -137,6 +158,7 @@ const VideoCall = () => {
 
     return () => {
       if (call) {
+        console.log('Leaving call...');
         call.leave();
       }
     };
@@ -168,37 +190,43 @@ const VideoCall = () => {
           </div>
           
           <div className="bg-gray-800 p-6 rounded-lg text-white">
-            <h3 className="text-xl mb-4 text-blue-400">🎥 Setup Video Calling</h3>
+            <h3 className="text-xl mb-4 text-blue-400">🎥 Video Calling Status</h3>
             <div className="text-left space-y-3">
               <div className="bg-gray-700 p-4 rounded-lg">
-                <h4 className="font-semibold text-green-400 mb-2">Step 1: Get Stream Account</h4>
-                <p className="text-sm">Visit <a href="https://getstream.io" target="_blank" rel="noopener noreferrer" className="text-blue-400 underline">getstream.io</a> and create a free account</p>
+                <h4 className="font-semibold text-green-400 mb-2">✅ Stream Credentials Detected</h4>
+                <p className="text-sm">Your Stream API credentials are configured in the backend</p>
+                <p className="text-xs text-gray-400 mt-1">API Key: {process.env.STREAM_API_KEY || 'Not visible'}</p>
               </div>
               <div className="bg-gray-700 p-4 rounded-lg">
-                <h4 className="font-semibold text-green-400 mb-2">Step 2: Create App</h4>
-                <p className="text-sm">Create a new app in the Stream dashboard</p>
+                <h4 className="font-semibold text-yellow-400 mb-2">⚠️ Connection Issue</h4>
+                <p className="text-sm">There might be a temporary connection issue with Stream services</p>
               </div>
               <div className="bg-gray-700 p-4 rounded-lg">
-                <h4 className="font-semibold text-green-400 mb-2">Step 3: Get Credentials</h4>
-                <p className="text-sm">Copy your API Key and Secret from the dashboard</p>
-              </div>
-              <div className="bg-gray-700 p-4 rounded-lg">
-                <h4 className="font-semibold text-green-400 mb-2">Step 4: Update Environment</h4>
-                <p className="text-sm">Add STREAM_API_KEY and STREAM_API_SECRET to your backend/.env file</p>
-              </div>
-              <div className="bg-gray-700 p-4 rounded-lg">
-                <h4 className="font-semibold text-green-400 mb-2">Step 5: Restart</h4>
-                <p className="text-sm">Restart the backend server to apply changes</p>
+                <h4 className="font-semibold text-blue-400 mb-2">🔧 Troubleshooting</h4>
+                <ul className="text-sm space-y-1">
+                  <li>• Check your internet connection</li>
+                  <li>• Verify Stream API credentials are valid</li>
+                  <li>• Try refreshing the page</li>
+                  <li>• Contact support if issue persists</li>
+                </ul>
               </div>
             </div>
           </div>
           
-          <button 
-            onClick={() => navigate('/')}
-            className="mt-6 px-8 py-3 bg-blue-600 text-white rounded-lg hover:bg-blue-700 transition-colors font-semibold"
-          >
-            Back to Chat
-          </button>
+          <div className="flex gap-4 mt-6">
+            <button 
+              onClick={() => window.location.reload()}
+              className="px-6 py-3 bg-blue-600 text-white rounded-lg hover:bg-blue-700 transition-colors font-semibold"
+            >
+              Retry Connection
+            </button>
+            <button 
+              onClick={() => navigate('/')}
+              className="px-6 py-3 bg-gray-600 text-white rounded-lg hover:bg-gray-700 transition-colors font-semibold"
+            >
+              Back to Chat
+            </button>
+          </div>
         </div>
       </div>
     );

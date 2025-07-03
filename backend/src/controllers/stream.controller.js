@@ -5,12 +5,14 @@ let streamClient = null;
 
 const initializeStreamClient = () => {
   if (!process.env.STREAM_API_KEY || !process.env.STREAM_API_SECRET) {
+    console.error('Stream API credentials not found in environment variables');
     return null;
   }
   
   // Check for demo credentials
   if (process.env.STREAM_API_KEY === 'demo_api_key_replace_with_real' || 
       process.env.STREAM_API_SECRET === 'demo_secret_replace_with_real') {
+    console.error('Demo Stream credentials detected, please replace with real credentials');
     return null;
   }
   
@@ -20,6 +22,7 @@ const initializeStreamClient = () => {
         process.env.STREAM_API_KEY,
         process.env.STREAM_API_SECRET
       );
+      console.log('Stream client initialized successfully');
     } catch (error) {
       console.error('Failed to initialize Stream client:', error);
       return null;
@@ -30,10 +33,13 @@ const initializeStreamClient = () => {
 
 export const generateStreamToken = async (req, res) => {
   try {
+    console.log('Generating Stream token for user:', req.user._id);
+    console.log('Stream API Key:', process.env.STREAM_API_KEY ? 'Present' : 'Missing');
+    console.log('Stream API Secret:', process.env.STREAM_API_SECRET ? 'Present' : 'Missing');
+
     // Check if Stream API credentials are configured
-    if (!process.env.STREAM_API_KEY || !process.env.STREAM_API_SECRET ||
-        process.env.STREAM_API_KEY === 'demo_api_key_replace_with_real' ||
-        process.env.STREAM_API_SECRET === 'demo_secret_replace_with_real') {
+    if (!process.env.STREAM_API_KEY || !process.env.STREAM_API_SECRET) {
+      console.error('Stream API credentials missing from environment');
       return res.status(503).json({ 
         message: 'Video calling service is not configured. Please add your Stream API credentials to the .env file.',
         error: 'STREAM_NOT_CONFIGURED',
@@ -50,6 +56,7 @@ export const generateStreamToken = async (req, res) => {
     const client = initializeStreamClient();
     
     if (!client) {
+      console.error('Failed to initialize Stream client');
       return res.status(503).json({ 
         message: 'Video calling service is temporarily unavailable.',
         error: 'STREAM_CLIENT_ERROR'
@@ -62,8 +69,11 @@ export const generateStreamToken = async (req, res) => {
     const profilePic = req.user.profilePic;
 
     try {
+      console.log('Creating token for user:', userId);
+      
       // Generate Stream token
       const token = client.createToken(userId);
+      console.log('Token generated successfully');
 
       // Update or create user in Stream
       await client.upsertUser({
@@ -72,6 +82,7 @@ export const generateStreamToken = async (req, res) => {
         email: userEmail,
         image: profilePic || '/avatar.png',
       });
+      console.log('User upserted in Stream successfully');
 
       res.status(200).json({ 
         token,
@@ -82,15 +93,24 @@ export const generateStreamToken = async (req, res) => {
       });
     } catch (streamError) {
       console.error('Stream API error:', streamError);
+      
+      // Check if it's an authentication error
+      if (streamError.message && streamError.message.includes('authentication')) {
+        return res.status(503).json({ 
+          message: 'Invalid Stream API credentials. Please check your STREAM_API_KEY and STREAM_API_SECRET.',
+          error: 'STREAM_AUTH_ERROR'
+        });
+      }
+      
       res.status(503).json({ 
-        message: 'Failed to generate video call token',
+        message: 'Failed to generate video call token: ' + streamError.message,
         error: 'STREAM_TOKEN_ERROR'
       });
     }
   } catch (error) {
     console.error('Error in generateStreamToken:', error);
     res.status(500).json({ 
-      message: 'Internal Server Error',
+      message: 'Internal Server Error: ' + error.message,
       error: 'INTERNAL_ERROR'
     });
   }
@@ -98,10 +118,11 @@ export const generateStreamToken = async (req, res) => {
 
 export const createCall = async (req, res) => {
   try {
+    console.log('Creating call for user:', req.user._id);
+    
     // Check if Stream API credentials are configured
-    if (!process.env.STREAM_API_KEY || !process.env.STREAM_API_SECRET ||
-        process.env.STREAM_API_KEY === 'demo_api_key_replace_with_real' ||
-        process.env.STREAM_API_SECRET === 'demo_secret_replace_with_real') {
+    if (!process.env.STREAM_API_KEY || !process.env.STREAM_API_SECRET) {
+      console.error('Stream API credentials missing for call creation');
       return res.status(503).json({ 
         message: 'Video calling service is not configured.',
         error: 'STREAM_NOT_CONFIGURED'
@@ -111,6 +132,7 @@ export const createCall = async (req, res) => {
     const client = initializeStreamClient();
     
     if (!client) {
+      console.error('Stream client not available for call creation');
       return res.status(503).json({ 
         message: 'Video calling service is temporarily unavailable.',
         error: 'STREAM_CLIENT_ERROR'
@@ -128,6 +150,8 @@ export const createCall = async (req, res) => {
     }
 
     try {
+      console.log('Creating call with ID:', callId);
+      
       // Create call data
       const callData = {
         id: callId,
@@ -144,6 +168,8 @@ export const createCall = async (req, res) => {
         }
       };
 
+      console.log('Call created successfully:', callId);
+      
       res.status(200).json({ 
         success: true,
         callId,
@@ -153,14 +179,14 @@ export const createCall = async (req, res) => {
     } catch (streamError) {
       console.error('Stream call creation error:', streamError);
       res.status(503).json({ 
-        message: 'Failed to create video call',
+        message: 'Failed to create video call: ' + streamError.message,
         error: 'STREAM_CALL_ERROR'
       });
     }
   } catch (error) {
     console.error('Error in createCall:', error);
     res.status(500).json({ 
-      message: 'Internal Server Error',
+      message: 'Internal Server Error: ' + error.message,
       error: 'INTERNAL_ERROR'
     });
   }
@@ -171,6 +197,8 @@ export const getCallDetails = async (req, res) => {
     const { callId } = req.params;
     const userId = req.user._id.toString();
 
+    console.log('Getting call details for:', callId);
+
     if (!callId) {
       return res.status(400).json({
         message: 'Call ID is required',
@@ -179,9 +207,7 @@ export const getCallDetails = async (req, res) => {
     }
 
     // Check if Stream API credentials are configured
-    if (!process.env.STREAM_API_KEY || !process.env.STREAM_API_SECRET ||
-        process.env.STREAM_API_KEY === 'demo_api_key_replace_with_real' ||
-        process.env.STREAM_API_SECRET === 'demo_secret_replace_with_real') {
+    if (!process.env.STREAM_API_KEY || !process.env.STREAM_API_SECRET) {
       return res.status(503).json({ 
         message: 'Video calling service is not configured.',
         error: 'STREAM_NOT_CONFIGURED'
@@ -197,7 +223,7 @@ export const getCallDetails = async (req, res) => {
   } catch (error) {
     console.error('Error getting call details:', error);
     res.status(500).json({ 
-      message: 'Internal Server Error',
+      message: 'Internal Server Error: ' + error.message,
       error: 'INTERNAL_ERROR'
     });
   }
