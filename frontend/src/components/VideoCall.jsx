@@ -70,7 +70,7 @@ const VideoCall = () => {
   const { callId } = useParams();
   const navigate = useNavigate();
   const { authUser } = useAuthStore();
-  const { streamToken, apiKey, getStreamToken } = useStreamStore();
+  const { streamToken, apiKey, getStreamToken, isStreamConfigured } = useStreamStore();
   const [call, setCall] = useState(null);
   const [isLoading, setIsLoading] = useState(true);
   const [error, setError] = useState(null);
@@ -84,10 +84,19 @@ const VideoCall = () => {
     const initializeCall = async () => {
       try {
         setIsLoading(true);
+        setError(null);
         
         // Get Stream token if not available
         if (!streamToken || !apiKey) {
-          await getStreamToken();
+          const tokenData = await getStreamToken();
+          if (!tokenData) {
+            throw new Error('Failed to get Stream credentials');
+          }
+        }
+
+        // Check if Stream is configured
+        if (isStreamConfigured === false) {
+          throw new Error('Video calling service is not configured');
         }
 
         // Import StreamVideoClient dynamically to avoid SSR issues
@@ -128,7 +137,7 @@ const VideoCall = () => {
         call.leave();
       }
     };
-  }, [callId, authUser, navigate, streamToken, apiKey, getStreamToken]);
+  }, [callId, authUser, navigate, streamToken, apiKey, getStreamToken, isStreamConfigured]);
 
   if (!authUser) {
     return null;
@@ -145,13 +154,13 @@ const VideoCall = () => {
     );
   }
 
-  if (error) {
+  if (error || isStreamConfigured === false) {
     return (
       <div className="flex items-center justify-center h-screen bg-gray-900">
         <div className="text-center max-w-md">
           <div className="bg-red-100 border border-red-400 text-red-700 px-4 py-3 rounded mb-4">
-            <h3 className="font-bold">Error</h3>
-            <p>{error}</p>
+            <h3 className="font-bold">Video Call Unavailable</h3>
+            <p>{error || 'Video calling service is not configured'}</p>
           </div>
           
           <div className="bg-gray-800 p-6 rounded-lg text-white">
@@ -160,7 +169,7 @@ const VideoCall = () => {
               <li>1. Sign up for a Stream account at getstream.io</li>
               <li>2. Get your API key and secret from the dashboard</li>
               <li>3. Add STREAM_API_KEY and STREAM_API_SECRET to your .env file</li>
-              <li>4. Restart the application</li>
+              <li>4. Restart the backend server</li>
             </ol>
           </div>
           

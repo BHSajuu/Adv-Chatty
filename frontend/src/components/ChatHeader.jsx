@@ -10,7 +10,7 @@ const ChatHeader = () => {
   const { selectedUser, setSelectedUser, clearChat, sendMessage } = useChatStore();
   const { authUser } = useAuthStore();
   const { onlineUsers } = useAuthStore();
-  const { createCall, streamToken, getStreamToken } = useStreamStore();
+  const { createCall, streamToken, getStreamToken, isStreamConfigured } = useStreamStore();
   const [open, setOpen] = useState(false);
   const [isCreatingCall, setIsCreatingCall] = useState(false);
 
@@ -29,9 +29,19 @@ const ChatHeader = () => {
     try {
       setIsCreatingCall(true);
       
+      // Check if Stream is configured first
+      if (isStreamConfigured === false) {
+        toast.error("Video calling is not configured. Please contact administrator.");
+        return;
+      }
+      
       // Ensure we have stream token
       if (!streamToken) {
-        await getStreamToken();
+        const tokenData = await getStreamToken();
+        if (!tokenData) {
+          // Error already shown by getStreamToken
+          return;
+        }
       }
 
       // Generate unique call ID
@@ -54,11 +64,14 @@ const ChatHeader = () => {
       toast.success("Video call created! Link sent to chat.");
     } catch (error) {
       console.error("Error creating video call:", error);
-      toast.error("Failed to create video call. Please check your Stream configuration.");
+      // Error message already shown by createCall
     } finally {
       setIsCreatingCall(false);
     }
   };
+
+  // Check if video calling should be disabled
+  const isVideoCallDisabled = isStreamConfigured === false || isCreatingCall;
 
   return (
     <div className=" p-2.5  border-b border-base-300 fixed w-full top-2 z-40 backdrop-blur-3xl md:w-auto md:relative md:top-0 md:z-0">
@@ -84,9 +97,17 @@ const ChatHeader = () => {
         <div className="flex flex-row gap-8 lg:gap-18 items-center">
           <button 
             onClick={handleVideoCall}
-            disabled={isCreatingCall}
-            className={`tooltip tooltip-left hover:cursor-pointer ${isCreatingCall ? 'opacity-50' : ''}`}
-            data-tip={isCreatingCall ? "Creating call..." : "Start video call"}
+            disabled={isVideoCallDisabled}
+            className={`tooltip tooltip-left hover:cursor-pointer ${
+              isVideoCallDisabled ? 'opacity-50 cursor-not-allowed' : ''
+            }`}
+            data-tip={
+              isStreamConfigured === false 
+                ? "Video calling not configured" 
+                : isCreatingCall 
+                ? "Creating call..." 
+                : "Start video call"
+            }
             type="button"
           >
             <Video className={isCreatingCall ? 'animate-pulse' : ''} />
