@@ -24,7 +24,7 @@ const ChatContainer = () => {
   } = useChatStore();
   
   const { authUser } = useAuthStore();
-  const { autoTranslate, userLanguage, translateMessage } = useAIStore();
+  const { autoTranslate, userLanguage, translateMessage, isTranslating } = useAIStore();
   const messageEndRef = useRef(null);
 
   const [hover, setHover] = useState(false);
@@ -33,7 +33,8 @@ const ChatContainer = () => {
   const [modalOpen, setModalOpen] = useState(false);
   const [currentLink, setCurrentLink] = useState("");
   const [translatedMessages, setTranslatedMessages] = useState({});
-   const [lastTranslatedId, setLastTranslatedId] = useState(null);
+  const [lastTranslatedId, setLastTranslatedId] = useState(null);
+  const [translatingMessages, setTranslatingMessages] = useState(new Set());
 
   useEffect(() => {
     getMessages(selectedUser._id);
@@ -52,7 +53,8 @@ const ChatContainer = () => {
     }
   }, [messages]);
 
-    useEffect(() => {
+  // Auto-translate messages when settings change or new messages arrive
+  useEffect(() => {
     const translateNewMessages = async () => {
       if (!autoTranslate || !messages.length) return;
 
@@ -66,9 +68,13 @@ const ChatContainer = () => {
         : messages;
 
       const newTranslations = {};
+      const translatingSet = new Set(translatingMessages);
 
       for (const message of newMessages) {
-        if (message.text && !translatedMessages[message._id]) {
+        if (message.text && !translatedMessages[message._id] && !translatingSet.has(message._id)) {
+          translatingSet.add(message._id);
+          setTranslatingMessages(new Set(translatingSet));
+
           try {
             const translated = await translateMessage(
               message.text,
@@ -77,12 +83,16 @@ const ChatContainer = () => {
             );
             newTranslations[message._id] = translated;
           } catch (error) {
-            console.error("Translation failed for message id:", message._id);
-            newTranslations[message._id] = message.text;
+            console.error("Translation failed for message id:", message._id, error);
+            newTranslations[message._id] = message.text; // Fallback to original text
+          } finally {
+            translatingSet.delete(message._id);
+            setTranslatingMessages(new Set(translatingSet));
           }
         }
       }
-    // this is a common way to check if an object is not empty in JavaScript.
+
+      // Check if an object is not empty
       if (Object.keys(newTranslations).length > 0) {
         setTranslatedMessages(prev => ({ ...prev, ...newTranslations }));
         setLastTranslatedId(messages[messages.length - 1]._id);
@@ -90,14 +100,22 @@ const ChatContainer = () => {
     };
 
     translateNewMessages();
-  }, [messages, autoTranslate, userLanguage, lastTranslatedId]);
+  }, [messages, autoTranslate, userLanguage, lastTranslatedId, translateMessage, translatedMessages, translatingMessages]);
 
-
-  // Add this effect to reset lastTranslatedId when user changes
+  // Reset translation state when user changes
   useEffect(() => {
     setLastTranslatedId(null);
+    setTranslatedMessages({});
+    setTranslatingMessages(new Set());
   }, [selectedUser._id]);
 
+  // Reset translations when auto-translate is disabled
+  useEffect(() => {
+    if (!autoTranslate) {
+      setTranslatedMessages({});
+      setTranslatingMessages(new Set());
+    }
+  }, [autoTranslate]);
 
   const handleDeleteMessage = async (messageId) => {
     try {
@@ -134,6 +152,10 @@ const ChatContainer = () => {
     return message.text;
   };
 
+  const isMessageTranslating = (messageId) => {
+    return translatingMessages.has(messageId);
+  };
+
   if (isMessagesLoading) {
     return (
       <div className="flex-1 flex flex-col overflow-auto">
@@ -152,9 +174,9 @@ const ChatContainer = () => {
       {autoTranslate && (
         <div className="px-4 py-2 bg-gradient-to-r from-blue-50 to-purple-50 dark:from-blue-900/20 dark:to-purple-900/20 border-b">
           <div className="flex items-center gap-2 text-sm">
-            <div className="w-2 h-2 bg-blue-500 rounded-full animate-pulse"></div>
+            <div className={`w-2 h-2 rounded-full ${isTranslating ? 'bg-yellow-500 animate-pulse' : 'bg-blue-500'}`}></div>
             <span className="text-blue-600 dark:text-blue-400 font-medium">
-              Auto-translating to {userLanguage}
+              {isTranslating ? `Translating to ${userLanguage}...` : `Auto-translating to ${userLanguage}`}
             </span>
           </div>
         </div>
@@ -214,9 +236,17 @@ const ChatContainer = () => {
               <time className="text-xs opacity-50 ml-1">
                 {formatMessageTime(message.createdAt)}
               </time>
-              {autoTranslate && translatedMessages[message._id] && (
-                <span className="ml-2 text-xs bg-blue-100 dark:bg-blue-900/30 text-blue-600 dark:text-blue-400 px-2 py-1 rounded-full">
-                  Translated
+              {autoTranslate && (
+                <span className="ml-2 text-xs px-2 py-1 rounded-full">
+                  {isMessageTranslating(message._id) ? (
+                    <span className="bg-yellow-100 dark:bg-yellow-900/30 text-yellow-600 dark:text-yellow-400 animate-pulse">
+                      Translating...
+                    </span>
+                  ) : translatedMessages[message._id] ? (
+                    <span className="bg-blue-100 dark:bg-blue-900/30 text-blue-600 dark:text-blue-400">
+                      Translated
+                    </span>
+                  ) : null}
                 </span>
               )}
             </div>
@@ -250,14 +280,14 @@ const ChatContainer = () => {
                       onClick={() =>
                         handleEditMessage(message._id, editedText)
                       }
-                      className="text-blue-500 hover:scale-120 transform-transition ease-in-out"
+                      className="text-blue-500 hover:scale-120 transform-transition ease-in-out cursor-pointer"
                     />
                     <X
                       onClick={() => {
                         setEditingMessageId(null);
                         setEditedText("");
                       }}
-                      className="text-red-500 hover:scale-120 transform-transition ease-in-out"
+                      className="text-red-500 hover:scale-120 transform-transition ease-in-out cursor-pointer"
                     />
                   </div>
                 </div>

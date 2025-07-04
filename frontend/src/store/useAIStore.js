@@ -19,6 +19,9 @@ export const useAIStore = create((set, get) => ({
   isListening: false,
   isProcessingVoice: false,
   
+  // Loading states
+  isTranslating: false,
+  
   // Actions
   setUserLanguage: (language) => {
     localStorage.setItem("user-language", language);
@@ -32,27 +35,64 @@ export const useAIStore = create((set, get) => ({
   
   translateMessage: async (text, targetLanguage, sourceLanguage = "auto-detect") => {
     try {
+      set({ isTranslating: true });
+      
+      // Don't translate if text is empty
+      if (!text || !text.trim()) {
+        return text;
+      }
+
       const response = await axiosInstance.post("/ai/translate", {
-        text,
+        text: text.trim(),
         targetLanguage,
         sourceLanguage
       });
-      return response.data.translatedText;
+
+      if (response.data.success) {
+        return response.data.translatedText;
+      } else {
+        console.error("Translation API returned error:", response.data.message);
+        return text; // Return original text if translation fails
+      }
     } catch (error) {
       console.error("Translation failed:", error);
+      
+      // Show user-friendly error messages
+      if (error.response?.status === 500) {
+        toast.error("Translation service temporarily unavailable");
+      } else if (error.response?.status === 429) {
+        toast.error("Translation quota exceeded. Please try again later.");
+      } else if (error.response?.data?.message) {
+        toast.error(error.response.data.message);
+      } else {
+        toast.error("Translation failed. Using original text.");
+      }
+      
       return text; // Return original text if translation fails
+    } finally {
+      set({ isTranslating: false });
     }
   },
   
   getSmartSuggestions: async (conversationHistory) => {
     try {
+      if (!conversationHistory || conversationHistory.length === 0) {
+        set({ smartSuggestions: [], showSuggestions: false });
+        return;
+      }
+
       const response = await axiosInstance.post("/ai/suggestions", {
         conversationHistory
       });
-      set({ 
-        smartSuggestions: response.data.suggestions,
-        showSuggestions: true 
-      });
+      
+      if (response.data.success) {
+        set({ 
+          smartSuggestions: response.data.suggestions,
+          showSuggestions: response.data.suggestions.length > 0
+        });
+      } else {
+        set({ smartSuggestions: [], showSuggestions: false });
+      }
     } catch (error) {
       console.error("Failed to get smart suggestions:", error);
       set({ smartSuggestions: [], showSuggestions: false });
@@ -71,10 +111,14 @@ export const useAIStore = create((set, get) => ({
         conversationHistory
       });
       
-      set({ 
-        typingAssist: response.data.suggestions,
-        showTypingAssist: response.data.suggestions.length > 0
-      });
+      if (response.data.success) {
+        set({ 
+          typingAssist: response.data.suggestions,
+          showTypingAssist: response.data.suggestions.length > 0
+        });
+      } else {
+        set({ typingAssist: [], showTypingAssist: false });
+      }
     } catch (error) {
       console.error("Failed to get typing assist:", error);
       set({ typingAssist: [], showTypingAssist: false });
@@ -90,7 +134,12 @@ export const useAIStore = create((set, get) => ({
         lastMessage
       });
       
-      return response.data;
+      if (response.data.success) {
+        return response.data;
+      } else {
+        toast.error(response.data.message || "Voice command failed");
+        return null;
+      }
     } catch (error) {
       console.error("Failed to process voice command:", error);
       toast.error("Voice command failed");
