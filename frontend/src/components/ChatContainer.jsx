@@ -33,6 +33,7 @@ const ChatContainer = () => {
   const [modalOpen, setModalOpen] = useState(false);
   const [currentLink, setCurrentLink] = useState("");
   const [translatedMessages, setTranslatedMessages] = useState({});
+   const [lastTranslatedId, setLastTranslatedId] = useState(null);
 
   useEffect(() => {
     getMessages(selectedUser._id);
@@ -51,35 +52,52 @@ const ChatContainer = () => {
     }
   }, [messages]);
 
-  // Auto-translate messages when settings change or new messages arrive
-  useEffect(() => {
-    const translateMessages = async () => {
+    useEffect(() => {
+    const translateNewMessages = async () => {
       if (!autoTranslate || !messages.length) return;
 
+      // Find the index of the last translated message
+      const lastIndex = lastTranslatedId
+        ? messages.findIndex(m => m._id === lastTranslatedId)
+        : -1;
+
+      const newMessages = lastIndex >= 0
+        ? messages.slice(lastIndex + 1)
+        : messages;
+
       const newTranslations = {};
-      
-      for (const message of messages) {
+
+      for (const message of newMessages) {
         if (message.text && !translatedMessages[message._id]) {
           try {
             const translated = await translateMessage(
-              message.text, 
-              userLanguage, 
+              message.text,
+              userLanguage,
               "auto-detect"
             );
             newTranslations[message._id] = translated;
           } catch (error) {
-            console.error("Translation failed for message:", message._id);
+            console.error("Translation failed for message id:", message._id);
+            newTranslations[message._id] = message.text;
           }
         }
       }
-
+    // this is a common way to check if an object is not empty in JavaScript.
       if (Object.keys(newTranslations).length > 0) {
         setTranslatedMessages(prev => ({ ...prev, ...newTranslations }));
+        setLastTranslatedId(messages[messages.length - 1]._id);
       }
     };
 
-    translateMessages();
-  }, [messages, autoTranslate, userLanguage, translateMessage]);
+    translateNewMessages();
+  }, [messages, autoTranslate, userLanguage, lastTranslatedId]);
+
+
+  // Add this effect to reset lastTranslatedId when user changes
+  useEffect(() => {
+    setLastTranslatedId(null);
+  }, [selectedUser._id]);
+
 
   const handleDeleteMessage = async (messageId) => {
     try {
