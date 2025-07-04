@@ -7,8 +7,8 @@ import MessageInput from "./MessageInput";
 import MessageSkeleton from "./skeletons/MessageSkeleton";
 import { Check, Pencil, Trash2, X } from "lucide-react";
 import CustomAudioPlayer from "./CustomAudioPlayer";
-
-
+import Linkify from "react-linkify";
+import ConfirmationModal from "./ConfirmationModal";
 
 const ChatContainer = () => {
   const {
@@ -25,17 +25,15 @@ const ChatContainer = () => {
   const messageEndRef = useRef(null);
 
   const [hover, setHover] = useState(false);
-  const [editingMessageId, setEditingMessageId] = useState(null); // Track the message being edited
-  const [editedText, setEditedText] = useState(""); // Track the updated text
+  const [editingMessageId, setEditingMessageId] = useState(null);
+  const [editedText, setEditedText] = useState("");
 
-
-
+  const [modalOpen, setModalOpen] = useState(false);
+  const [currentLink, setCurrentLink] = useState("");
 
   useEffect(() => {
     getMessages(selectedUser._id);
-
     subscribeToMessages();
-
     return () => unsubscribeFromMessages();
   }, [
     selectedUser._id,
@@ -50,6 +48,34 @@ const ChatContainer = () => {
     }
   }, [messages]);
 
+  const handleDeleteMessage = async (messageId) => {
+    try {
+      await deleteMessage(messageId);
+    } catch (error) {
+      console.error("Failed to delete message:", error);
+    }
+  };
+
+  const handleEditMessage = async (messageId, text) => {
+    try {
+      await editMessageText(messageId, text);
+      setEditingMessageId(null);
+      setEditedText("");
+    } catch (error) {
+      console.error("Failed to edit message:", error);
+    }
+  };
+
+  const openJoinModal = (link) => {
+    setCurrentLink(link);
+    setModalOpen(true);
+  };
+
+  const handleJoin = () => {
+    window.open(currentLink, "_blank");
+    setModalOpen(false);
+  };
+
   if (isMessagesLoading) {
     return (
       <div className="flex-1 flex flex-col overflow-auto">
@@ -60,57 +86,38 @@ const ChatContainer = () => {
     );
   }
 
-  const handleDeleteMessage = async (messageId) => {
-    try {
-      await deleteMessage(messageId);
-    } catch (error) {
-      console.error("Failed to delete message:", error);
-    }
-  }
-
-
-  const handleEditMessage = async (messageId, text) => {
-    try {
-      await editMessageText(messageId, text);
-      setEditingMessageId(null);
-      setEditedText("");
-    } catch (error) {
-      console.error("Failed to edit message:", error);
-
-    }
-  }
-
-
   return (
-    <div className="flex-1  flex flex-col overflow-auto  md:my-0">
-
+    <div className="flex-1 flex flex-col overflow-auto md:my-0">
       <ChatHeader />
-
-
-      <div className=" flex-1 overflow-y-scroll pt-8 pb-20 md:mb-0 px-4  md:p-4 space-y-4  md:relative">
+      <div className="flex-1 overflow-y-scroll pt-8 pb-20 md:mb-0 px-4 md:p-4 space-y-4 md:relative">
         {messages.map((message) => (
           <div
-            onMouseEnter={() => setHover(message._id)}
-            onMouseLeave={() => { setHover(false) }}
             key={message._id}
-            className={`relative chat hover:cursor-pointer ${message.senderId === authUser._id ? "chat-end" : "chat-start"
-              }`}
-            ref={messageEndRef}>
-
-            {/* Delete Icon */}
+            onMouseEnter={() => setHover(message._id)}
+            onMouseLeave={() => setHover(false)}
+            className={`relative chat hover:cursor-pointer ${
+              message.senderId === authUser._id ? "chat-end" : "chat-start"
+            }`}
+          >
+            {/* Hovered icons */}
             {hover === message._id && (
               <div
-                className={`absolute ${message.senderId === authUser._id ? "right-0 top-1" : "left-0 "
-                  }  flex items-center`}
+                className={`absolute ${
+                  message.senderId === authUser._id
+                    ? "right-0 top-1"
+                    : "left-0"
+                } flex items-center`}
               >
                 <div className="flex gap-2">
-                  {message.senderId === authUser._id && <Pencil
-                    className="w-5 h-5 text-blue-500 cursor-pointer hover:scale-110 transition-transform"
-                    onClick={() => {
-                      setEditingMessageId(message._id); // Enter edit mode
-                      setEditedText(message.text); // Set the current text in the input
-                    }}
-                  />}
+                  {message.senderId === authUser._id && (
+                    <Pencil
+                      className="w-5 h-5 text-blue-500 cursor-pointer hover:scale-110 transition-transform"
+                      onClick={() => {
+                        setEditingMessageId(message._id);
+                        setEditedText(message.text);
+                      }}
+                    />
+                  )}
                   <Trash2
                     className="w-5 h-5 text-red-500 cursor-pointer hover:scale-110 transition-transform"
                     onClick={() => handleDeleteMessage(message._id)}
@@ -119,9 +126,8 @@ const ChatContainer = () => {
               </div>
             )}
 
-
-
-            <div className=" chat-image avatar">
+            {/* Avatar + Timestamp */}
+            <div className="chat-image avatar">
               <div className="size-10 rounded-full border">
                 <img
                   src={
@@ -138,6 +144,8 @@ const ChatContainer = () => {
                 {formatMessageTime(message.createdAt)}
               </time>
             </div>
+
+            {/* Content Bubble */}
             <div className="chat-bubble w-[220px] lg:w-auto flex flex-col">
               {message.image && (
                 <img
@@ -146,15 +154,14 @@ const ChatContainer = () => {
                   className="lg:w-auto sm:max-w-[200px] rounded-md mb-2"
                 />
               )}
-
               {message.audio && (
                 <div className="mt-2 mr-3 w-full max-w-[300px]">
                   <CustomAudioPlayer src={message.audio} />
                 </div>
-          
               )}
+
+              {/* Edit Input or Parsed Text */}
               {editingMessageId === message._id ? (
-                // Render input field if the message is being edited
                 <div className="flex flex-col items-center gap-2">
                   <input
                     type="text"
@@ -163,28 +170,69 @@ const ChatContainer = () => {
                     className="input input-bordered rounded-lg px-2 py-1 w-full"
                   />
                   <div className="flex gap-12">
-                    <Check onClick={() => handleEditMessage(message._id, editedText)}
-                      className="text-blue-500 hover:scale-120 transform-transition ease-in-out" />
-                    < X onClick={() => {
-                      setEditingMessageId(null);
-                      setEditedText("");
-                    }}
-                      className="text-red-500 hover:scale-120 transform-transition ease-in-out " />
+                    <Check
+                      onClick={() =>
+                        handleEditMessage(message._id, editedText)
+                      }
+                      className="text-blue-500 hover:scale-120 transform-transition ease-in-out"
+                    />
+                    <X
+                      onClick={() => {
+                        setEditingMessageId(null);
+                        setEditedText("");
+                      }}
+                      className="text-red-500 hover:scale-120 transform-transition ease-in-out"
+                    />
                   </div>
                 </div>
               ) : (
-                // Render message text if not editing
-                <p>{message.text}</p>
+                <Linkify
+                  componentDecorator={(href, text, key) => {
+                    const isCallLink = href.includes("/call/");
+                    return isCallLink ? (
+                      <button
+                        key={key}
+                        className="text-blue-500 hover:cursor-pointer btn-link p-0 m-0 bg-transparent"
+                        onClick={(e) => {
+                          e.preventDefault();
+                          openJoinModal(href);
+                        }}
+                      >
+                        click to join
+                      </button>
+                    ) : (
+                      <a
+                        key={key}
+                        href={href}
+                        target="_blank"
+                        rel="noopener noreferrer"
+                        className="text-blue-500 hover:cursor-pointer"
+                      >
+                        {text}
+                      </a>
+                    );
+                  }}
+                >
+                  <p>{message.text}</p>
+                </Linkify>
               )}
-
-              {/* {message.text && <p>{message.text}</p>} */}
             </div>
           </div>
         ))}
+        {/* ⬅️ Only one ref at end-of-list */}
+        <div ref={messageEndRef} />
       </div>
 
       <MessageInput />
+
+      <ConfirmationModal
+        isOpen={modalOpen}
+        link={currentLink}
+        onClose={() => setModalOpen(false)}
+        onJoin={handleJoin}
+      />
     </div>
   );
 };
+
 export default ChatContainer;

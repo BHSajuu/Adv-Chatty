@@ -1,18 +1,18 @@
 import { MessageCircleX, Video, X } from "lucide-react";
 import { useAuthStore } from "../store/useAuthStore";
 import { useChatStore } from "../store/useChatStore";
-import { useStreamStore } from "../store/useStreamStore";
 import { useState } from "react";
 import { v4 as uuidv4 } from 'uuid';
 import toast from "react-hot-toast";
+import { useCallStore } from "../store/useCallStore";
 
 const ChatHeader = () => {
   const { selectedUser, setSelectedUser, clearChat, sendMessage } = useChatStore();
   const { authUser } = useAuthStore();
-  const { onlineUsers, socket } = useAuthStore();
-  const { createCall, streamToken, getStreamToken, isStreamConfigured } = useStreamStore();
+  const { onlineUsers } = useAuthStore();
   const [open, setOpen] = useState(false);
-  const [isCreatingCall, setIsCreatingCall] = useState(false);
+  
+  const { join } = useCallStore();
 
   const handleClearChat = async () => {
     try {
@@ -25,66 +25,21 @@ const ChatHeader = () => {
     }
   }
 
-  const handleVideoCall = async () => {
-    try {
-      setIsCreatingCall(true);
-      
-      // Check if Stream is configured first
-      if (isStreamConfigured === false) {
-        toast.error("Video calling is not configured. Please contact administrator.");
-        return;
-      }
-      
-      // Ensure we have stream token
-      if (!streamToken) {
-        const tokenData = await getStreamToken();
-        if (!tokenData) {
-          // Error already shown by getStreamToken
-          return;
-        }
-      }
-
-      // Generate unique call ID
-      const callId = uuidv4();
-      const callLink = `${window.location.origin}/call/${callId}`;
-      
-      // Create call on backend
-      await createCall(callId, [selectedUser._id]);
-      
-      // Send call invitation via socket
-      if (socket) {
-        socket.emit('initiate-call', {
-          receiverId: selectedUser._id,
-          callId,
-          callerName: authUser.fullName,
-          callerImage: authUser.profilePic
-        });
-      }
-      
-      // Send video call link as a message
+  const handleVideoCall = async() => {
+    const callId = uuidv4();
+    const callUrl = `${window.location.origin}/call/${callId}`;
+     // Send video call link as a message
       await sendMessage({
-        text: `📹 Video Call Invitation: ${selectedUser.fullName}, click to join: ${callLink}`,
+        text: `📹 Video Call Invitation from ${authUser.fullName}:- ${callUrl}`,
         image: null,
         audio: null,
       });
-
-      // Open call in new tab
-      window.open(`/call/${callId}`, '_blank');
-      
+     join(callId);
       toast.success("Video call created! Link sent to chat.");
-    } catch (error) {
-      console.error("Error creating video call:", error);
-      // Error message already shown by createCall
-    } finally {
-      setIsCreatingCall(false);
-    }
   };
 
-  // Check if video calling should be disabled
-  const isVideoCallDisabled = isStreamConfigured === false || isCreatingCall;
-
   return (
-    <div className=" p-2.5  border-b border-base-300 fixed w-full top-2 z-40 backdrop-blur-3xl md:w-auto md:relative md:top-0 md:z-0">
+    <div className=" p-2.5  border-b border-base-300 fixed w-full top-2 z-40 backdrop-blur-3xl md:w-auto md:relative md:top-0 ">
       <div className="flex items-center justify-between">
         <div className="flex items-center gap-3">
           <div className="avatar">
@@ -105,28 +60,16 @@ const ChatHeader = () => {
         </div>
 
         <div className="flex flex-row gap-8 lg:gap-18 items-center">
-          <button 
-            onClick={handleVideoCall}
-            disabled={isVideoCallDisabled}
-            className={`tooltip tooltip-left hover:cursor-pointer ${
-              isVideoCallDisabled ? 'opacity-50 cursor-not-allowed' : ''
-            }`}
-            data-tip={
-              isStreamConfigured === false 
-                ? "Video calling not configured" 
-                : isCreatingCall 
-                ? "Creating call..." 
-                : "Start video call"
-            }
-            type="button"
-          >
-            <Video className={isCreatingCall ? 'animate-pulse' : ''} />
+
+          <button onClick={handleVideoCall} className="tooltip tooltip-left hover:cursor-pointer" data-tip="Video call" type="button">
+            <Video />
           </button>
+
           <button className="tooltip tooltip-left hover:cursor-pointer" data-tip="Clear chat" type="button">
             <MessageCircleX onClick={() => setOpen(true)} />
           </button>
           {open && (
-            <div className="fixed inset-0 flex items-center justify-center  backdrop-blur-sm z-5">
+            <div className="fixed top-32 right-3 md:left-0 flex items-center justify-center  backdrop-blur-sm z-5">
               <div className="bg-base-200 rounded-2xl shadow-3xl p-6 space-y-4 max-w-sm text-center animate-fade-in">
                 <h4 className="text-lg font-semibold">Clear chat?</h4>
                 <p className="text-sm text-base-content/70">
