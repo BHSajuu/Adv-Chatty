@@ -2,6 +2,7 @@ import { useEffect, useRef, useState } from "react";
 import { formatMessageTime } from "../lib/utils";
 import { useAuthStore } from "../store/useAuthStore";
 import { useChatStore } from "../store/useChatStore";
+import { useAIStore } from "../store/useAIStore";
 import ChatHeader from "./ChatHeader";
 import MessageInput from "./MessageInput";
 import MessageSkeleton from "./skeletons/MessageSkeleton";
@@ -21,15 +22,17 @@ const ChatContainer = () => {
     deleteMessage,
     editMessageText,
   } = useChatStore();
+  
   const { authUser } = useAuthStore();
+  const { autoTranslate, userLanguage, translateMessage } = useAIStore();
   const messageEndRef = useRef(null);
 
   const [hover, setHover] = useState(false);
   const [editingMessageId, setEditingMessageId] = useState(null);
   const [editedText, setEditedText] = useState("");
-
   const [modalOpen, setModalOpen] = useState(false);
   const [currentLink, setCurrentLink] = useState("");
+  const [translatedMessages, setTranslatedMessages] = useState({});
 
   useEffect(() => {
     getMessages(selectedUser._id);
@@ -47,6 +50,36 @@ const ChatContainer = () => {
       messageEndRef.current.scrollIntoView({ behavior: "smooth" });
     }
   }, [messages]);
+
+  // Auto-translate messages when settings change or new messages arrive
+  useEffect(() => {
+    const translateMessages = async () => {
+      if (!autoTranslate || !messages.length) return;
+
+      const newTranslations = {};
+      
+      for (const message of messages) {
+        if (message.text && !translatedMessages[message._id]) {
+          try {
+            const translated = await translateMessage(
+              message.text, 
+              userLanguage, 
+              "auto-detect"
+            );
+            newTranslations[message._id] = translated;
+          } catch (error) {
+            console.error("Translation failed for message:", message._id);
+          }
+        }
+      }
+
+      if (Object.keys(newTranslations).length > 0) {
+        setTranslatedMessages(prev => ({ ...prev, ...newTranslations }));
+      }
+    };
+
+    translateMessages();
+  }, [messages, autoTranslate, userLanguage, translateMessage]);
 
   const handleDeleteMessage = async (messageId) => {
     try {
@@ -76,6 +109,13 @@ const ChatContainer = () => {
     setModalOpen(false);
   };
 
+  const getDisplayText = (message) => {
+    if (autoTranslate && translatedMessages[message._id]) {
+      return translatedMessages[message._id];
+    }
+    return message.text;
+  };
+
   if (isMessagesLoading) {
     return (
       <div className="flex-1 flex flex-col overflow-auto">
@@ -89,6 +129,19 @@ const ChatContainer = () => {
   return (
     <div className="flex-1 flex flex-col overflow-auto md:my-0">
       <ChatHeader />
+      
+      {/* AI Translation Indicator */}
+      {autoTranslate && (
+        <div className="px-4 py-2 bg-gradient-to-r from-blue-50 to-purple-50 dark:from-blue-900/20 dark:to-purple-900/20 border-b">
+          <div className="flex items-center gap-2 text-sm">
+            <div className="w-2 h-2 bg-blue-500 rounded-full animate-pulse"></div>
+            <span className="text-blue-600 dark:text-blue-400 font-medium">
+              Auto-translating to {userLanguage}
+            </span>
+          </div>
+        </div>
+      )}
+      
       <div className="flex-1 overflow-y-scroll pt-8 pb-20 md:mb-0 px-4 md:p-4 space-y-4 md:relative">
         {messages.map((message) => (
           <div
@@ -143,6 +196,11 @@ const ChatContainer = () => {
               <time className="text-xs opacity-50 ml-1">
                 {formatMessageTime(message.createdAt)}
               </time>
+              {autoTranslate && translatedMessages[message._id] && (
+                <span className="ml-2 text-xs bg-blue-100 dark:bg-blue-900/30 text-blue-600 dark:text-blue-400 px-2 py-1 rounded-full">
+                  Translated
+                </span>
+              )}
             </div>
 
             {/* Content Bubble */}
@@ -213,13 +271,12 @@ const ChatContainer = () => {
                     );
                   }}
                 >
-                  <p>{message.text}</p>
+                  <p>{getDisplayText(message)}</p>
                 </Linkify>
               )}
             </div>
           </div>
         ))}
-        {/* ⬅️ Only one ref at end-of-list */}
         <div ref={messageEndRef} />
       </div>
 
